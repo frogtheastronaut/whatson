@@ -1,5 +1,4 @@
 {
-  "$schema": "data.schema.json",
   "1337x": {
     "errorMsg": [
       "<title>Error something went wrong.</title>",
@@ -115,7 +114,7 @@
     "username_claimed": "lio24d"
   },
   "Apple Discussions": {
-    "errorMsg": "The page you tried was not found. You may have used an outdated link or may have typed the address (URL) incorrectly.",
+    "errorMsg": "Looking for something in Apple Support Communities?",
     "errorType": "message",
     "url": "https://discussions.apple.com/profile/{}",
     "urlMain": "https://discussions.apple.com",
@@ -270,6 +269,13 @@
     "url": "https://{}.blogspot.com",
     "urlMain": "https://www.blogger.com/",
     "username_claimed": "blue"
+  },
+  "Bluesky": {
+    "errorType": "status_code",
+    "url": "https://bsky.app/profile/{}.bsky.social",
+    "urlProbe": "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={}.bsky.social",
+    "urlMain": "https://bsky.app/",
+    "username_claimed": "mcuban"
   },
   "BoardGameGeek": {
     "errorType": "message",
@@ -2859,13 +2865,6 @@
     "url": "https://www.znanylekarz.pl/{}",
     "urlMain": "https://znanylekarz.pl",
     "username_claimed": "janusz-nowak"
-  },
-  "Bluesky": {
-    "errorType": "status_code",
-    "url": "https://bsky.app/profile/{}.bsky.social",
-    "urlProbe": "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={}.bsky.social",
-    "urlMain": "https://bsky.app/",
-    "username_claimed": "mcuban"
   },
   "Platzi": {
     "errorType": "status_code",
