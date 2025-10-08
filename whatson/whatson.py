@@ -2,7 +2,7 @@ import sys
 import os
 import re
 import asyncio
-import httpx
+import httpx # type: ignore
 import logging
 import time
 from whatson.result import QueryStatus, QueryResult
@@ -80,7 +80,7 @@ async def check_site(session, semaphore, username, site_name, site_info, keyword
                 response_text = ""
             
             query_status = QueryStatus.UNKNOWN
-            
+
             # Check for WAF/bot detection patterns
             waf_patterns = [
                 r'.loading-spinner{visibility:hidden}body.no-js .challenge-running{display:none}',
@@ -88,14 +88,14 @@ async def check_site(session, semaphore, username, site_name, site_info, keyword
                 r'AwsWafIntegration.forceRefreshToken',
                 r'{return l.onPageView}}),Object.defineProperty(r,"perimeterxIdentifiers"'
             ]
-            
+
             if any(pattern in response_text for pattern in waf_patterns):
                 query_status = QueryStatus.UNKNOWN
             else:
                 if "message" in error_type:
                     error_flag = True
                     errors = site_info.get("errorMsg")
-                    
+
                     if isinstance(errors, str):
                         if errors in response_text:
                             error_flag = False
@@ -104,7 +104,7 @@ async def check_site(session, semaphore, username, site_name, site_info, keyword
                             if error in response_text:
                                 error_flag = False
                                 break
-                    
+
                     query_status = QueryStatus.CLAIMED if error_flag else QueryStatus.AVAILABLE
                 
                 if "status_code" in error_type and query_status != QueryStatus.AVAILABLE:
@@ -121,23 +121,26 @@ async def check_site(session, semaphore, username, site_name, site_info, keyword
                 
                 if "response_url" in error_type and query_status != QueryStatus.AVAILABLE:
                     query_status = QueryStatus.CLAIMED if 200 <= resp.status_code < 300 else QueryStatus.AVAILABLE
-            
-            # Print results
-            if query_status == QueryStatus.CLAIMED:
-                if keywords and response_text:
-                    keyword_matches = sum(1 for keyword in keywords if keyword.lower() in response_text.lower())
-                    if keyword_matches > 0:
-                        print(f"[+] [Keyword]   {site_name}: {url}")
-                elif not keywords:
-                    print(f"[+] [No Keyword] {site_name}: {url}")
-            
-            return site_name, {
+
+            last_modified = resp.headers.get("last-modified", None)
+            last_modified_str = f" \n - Last-Modified: {last_modified}" if last_modified else ""
+            site_result_data = {
                 "status": QueryResult(username, site_name, url, query_status, query_time),
                 "url_main": site_info.get("urlMain"),
                 "url_user": url,
                 "http_status": resp.status_code,
-                "response_text": response_text
+                "response_text": response_text,
+                "last_modified": last_modified or ""
             }
+            if query_status == QueryStatus.CLAIMED:
+                if keywords and response_text:
+                    keyword_matches = sum(1 for keyword in keywords if keyword.lower() in response_text.lower())
+                    if keyword_matches > 0:
+                        print(f"[+] [Keyword]   {site_name}: {url}{last_modified_str}")
+                elif not keywords:
+                    print(f"[+] [No Keyword] {site_name}: {url}{last_modified_str}")
+            
+            return site_name, site_result_data
                 
         except Exception as e:
             logging.debug(f"Error checking {site_name}: {e}")
@@ -186,18 +189,30 @@ async def whatson_async(username, site_data, keywords=None):
     
     print(f"\n{'='*50}")
     print("SUMMARY:")
-    
+
     found_count = 0
     keyword_matched_count = 0
-    
+    table = []
+
     for site_result in results.values():
         if site_result["status"].status == QueryStatus.CLAIMED:
             found_count += 1
-            if keywords and site_result["response_text"]:
-                response_lower = site_result["response_text"].lower()
-                if any(keyword.lower() in response_lower for keyword in keywords):
-                    keyword_matched_count += 1
-    
+            response_lower = site_result["response_text"].lower() if site_result["response_text"] else ""
+            keyword_count = sum(1 for keyword in keywords if keyword.lower() in response_lower) if keywords else 0
+            if keyword_count > 0:
+                keyword_matched_count += 1
+            url = site_result["url_user"]
+            last_modified = site_result.get("last_modified", "")
+            table.append([str(keyword_count), url, last_modified])
+
+    import csv
+    csv_filename = f"whatson_{username}.csv"
+    with open(csv_filename, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["keywords_found", "url", "last_modified"])
+        writer.writerows(table)
+    print(f"\nCSV results written to {csv_filename}")
+
     elapsed = time.time() - start_time
     print(f"\nCompleted in {elapsed:.2f} seconds")
     print(f"Total found: {found_count} sites")
@@ -205,7 +220,7 @@ async def whatson_async(username, site_data, keywords=None):
         print(f"With keyword matches: {keyword_matched_count} sites")
     print("\nAll scans finished. Closing connections")
     os._exit(0)
-    
+
     return results
 def whatson(username, site_data, keywords=None):
     if keywords is None:
